@@ -82,62 +82,62 @@ void Boosting::loadModel(const char* fname){
 void Boosting::presortData(T3*& oi){
 	printf("Presorting input data\n");
 	//sort columns into ordered indexes	
-	oi = new T3[tdata->M*tdata->N];
+	oi = new T3[data->M*data->N];
 #pragma omp parallel for
-	for (int j = 0; j<tdata->M; j++)
+	for (int j = 0; j<data->M; j++)
 	{
 		vector<Pair> pairs;
 		/*
-		pairs.reserve(tdata->N);
-		for(int i=0, iM=0; i<tdata->N; i++, iM+=tdata->M)
-		pairs.push_back(Pair( tdata->d[iM+j], (T3)i) );
+		pairs.reserve(data->N);
+		for(int i=0, iM=0; i<data->N; i++, iM+=data->M)
+		pairs.push_back(Pair( data->d[iM+j], (T3)i) );
 		*/
-		pairs.resize(tdata->N);
-		for (int i = 0, iM = 0; i<tdata->N; i++, iM += tdata->M)
-			pairs[i] = Pair(tdata->d[iM + j], (T3)i);
+		pairs.resize(data->N);
+		for (int i = 0, iM = 0; i<data->N; i++, iM += data->M)
+			pairs[i] = Pair(data->d[iM + j], (T3)i);
 		sort(pairs.begin(), pairs.end(), pairs[0]);
-		T3* oijn = oi + j*tdata->N;
-		for (int i = 0; i<tdata->N; i++)
+		T3* oijn = oi + j*data->N;
+		for (int i = 0; i<data->N; i++)
 			oijn[i] = pairs[i].i;
 	}
-	printf("Done (%d x %d entries)\n", tdata->N, tdata->M);
+	printf("Done (%d x %d entries)\n", data->N, data->M);
 }
 
-T Boosting::train(T* data, T*labels, int N, int M){
-	tdata->N = N;
-	tdata->M = M;
-	tdata->w = new T2[N];
+T Boosting::train(T* descr, T*labels, int N, int M){
+	data->N = N;
+	data->M = M;
+	data->w = new T2[N];
 #define COPY_DATA 0
 #if COPY_DATA //copy data
-	tdata->d = new T[N*M];
-	tdata->l = new T[N];
-	memcpy(tdata->d, data, N*M*sizeof(T));
-	memcpy(tdata->l, labels, N*sizeof(T));
+	data->d = new T[N*M];
+	data->l = new T[N];
+	memcpy(data->d, descr, N*M*sizeof(T));
+	memcpy(data->l, labels, N*sizeof(T));
 #else
-  tdata->l = labels;
-  tdata->d = data;
+  data->l = labels;
+	data->d = descr;
 #endif
 	for(int i=0; i<N; i++)
-    tdata->w[i] = ((T2)1.0)/N;
+    data->w[i] = ((T2)1.0)/N;
 	
 	float ret = train();
 #if !COPY_DATA //this way the destructor does not deallocate the memory locations ad d and l
-	tdata->d = 0;
-	tdata->l = 0;
+	data->d = 0;
+	data->l = 0;
 #endif
 	return ret;
 }
 
 T Boosting :: train(const char* fname){
-	tdata = new Traindata();
-	tdata->loadData(fname);
+	data = new Data();
+	data->loadData(fname);
 	return train();
 }
 
 T Boosting::train(){
 	int nrweak = model->bp->nrweak;
-	const int N = tdata->N;
-	const int M = tdata->M;
+	const int N = data->N;
+	const int M = data->M;
 	T2* lbls = new T2[N];
 	T2* scores = new T2[N]; memset(scores, 0, N*sizeof(T2));
 	T2* c = model->c;
@@ -153,20 +153,20 @@ T Boosting::train(){
 		//printf("Training tree %d\n",m);
 		trees[m].p.maxDepth = model->bp->maxDepth;
 		//t.tic();
-		trees[m].train( tdata, oi );		
+		trees[m].train( data, oi );		
 		//t.toc();		
 
 		//find the weighted training error for the m-th weak classifier		
 #pragma omp parallel for //reduction(+:errm)
 		for(int i=0; i<N; i++)
 		{
-			lbls[i] = trees[m].predict( tdata->d+i*M ); //? maybe try to eliminate			
+			lbls[i] = trees[m].predict( data->d+i*M ); //? maybe try to eliminate			
 		}
 		
 		T2 errm = 0;
 		for(int i=0; i<N; i++) 
-			if (lbls[i] * tdata->l[i]<0) 
-				errm += tdata->w[i];		
+			if (lbls[i] * data->l[i]<0) 
+				errm += data->w[i];		
 					
 		if (errm > 0.5 )
 			break;		
@@ -178,21 +178,21 @@ T Boosting::train(){
 		for (int i = 0; i < N; i++)
 		{
 			scores[i] += c[m] * lbls[i];
-			if (scores[i] * tdata->l[i] < 0)
+			if (scores[i] * data->l[i] < 0)
 				err++;
 		}
-		err /= tdata->N;
+		err /= data->N;
 		printf("Error Using %d trees: %5.4f %%, acc %5.4f %%\n", m, err*100.f, (1 - err)*100.f);
 
 		for(int i=0; i<N; i++)
 		{
-			tdata->w[i] *= exp( -c[m] * lbls[i] * tdata->l[i] );
-			sumw += tdata->w[i];
+			data->w[i] *= exp( -c[m] * lbls[i] * data->l[i] );
+			sumw += data->w[i];
 		}
 		trees[m].setLabel(c[m]);		
 
-		for(int i=0; i<tdata->N; i++)
-			tdata->w[i] /= sumw;
+		for(int i=0; i<data->N; i++)
+			data->w[i] /= sumw;
 	}
 	model->bp->nrweak = m;
 	nrweak = m;
@@ -204,11 +204,11 @@ T Boosting::train(){
 		T2 err = 0;
 		for(int i=0; i<N; i++)
 		{
-			T lbl = predict( tdata->d+i*M );
-			if ( lbl * tdata->l[i] < 0 )
+			T lbl = predict( data->d+i*M );
+			if ( lbl * data->l[i] < 0 )
 				err++;
 		}
-		err /= tdata->N;
+		err /= data->N;
 		printf("\nUsing all %d trees: err %5.4f %%, acc %5.4f %%\n", m2, err*100.f, (1-err)*100.f);
 	}
 
@@ -220,9 +220,9 @@ T Boosting::train(){
 	for(int j=0; j<model->bp->nrweak; j++){
 		T minsampletrace = INF;
 		for(int i=0; i<N; i++)
-			if ( tdata->l[i] == 1.0 )
+			if ( data->l[i] == 1.0 )
 			{				
-				T pred = model->trees[j].predict( tdata->d+i*M );
+				T pred = model->trees[j].predict( data->d+i*M );
 				sampletrace[i] += pred;			
 				if ( sampletrace[i] < minsampletrace )
 					minsampletrace = sampletrace[i];
@@ -234,13 +234,13 @@ T Boosting::train(){
 	double start = clock();
 	T err2 = 0;
 	T avg = 0;
-	for(int i=0; i<tdata->N; i++)
+	for(int i=0; i<data->N; i++)
 	{
 		T lbl = 0;
 		int j;
 		for(j=0; j<nrweak; j++)
 		{
-			lbl += model->trees[j].predict( tdata->d+i*M );
+			lbl += model->trees[j].predict( data->d+i*M );
 				if (lbl<model->thetas[j])
 				{
 					lbl = -1;
@@ -249,12 +249,12 @@ T Boosting::train(){
 				}
 		}
 		avg += j;
-		if ( lbl * tdata->l[i] < 0 )
+		if ( lbl * data->l[i] < 0 )
 			err2++;
 	}
 	double end = clock();
 	avg /= N;
-	err2 /= tdata->N;
+	err2 /= data->N;
 	printf("Training data results: err2 %5.4f %%, acc %5.4f %%\n", err2*100.f, (1-err2)*100.f);	
 	
 	printf("\nMade %d classifications in %f seconds, speed: %f ms/instance\n", N, (end-start)/CLOCKS_PER_SEC, (end-start)*1000/CLOCKS_PER_SEC/N );

@@ -1,31 +1,33 @@
 #include "classifier.h"
 
 Classifier::Classifier(){
-	tdata = 0;
+	data = 0;
 }
 
 Classifier::~Classifier(){
-	if (tdata) delete tdata;
+	if (data) delete data;
 }
 
-void Classifier::setData(Traindata* td){
-	tdata = td;
+void Classifier::setData(Data* d){
+	data = d;
 }
 
-T Classifier::calculateError(){	
+T Classifier::calcError(){
 	//data must be loaded previously
 	T err = 0;
-	if (!tdata->d || !tdata->l) return err;
+	if (!data->d || !data->l) return err;
 
-	T* sample = tdata->d;
-	for (int i = 0; i < tdata->N; i++)
+	T* sample = data->d;
+	for (int i = 0; i < data->N; i++)
 	{
+		//printf("%d of %d\n", i, data->N);
 		T lbl = predict(sample);
-		if (lbl*tdata->l[i] < 0)
+		if (lbl*data->l[i] < 0)
 			err++;
-		sample += tdata->M;
+		sample += data->M;
 	}
-	err /= tdata->N;
+	err /= data->N;
+	printf("Error on the dataset: %.4f %%, acc: %.4f %%\n", err * 100, 100 * (1 - err));
 	return err;
 }
 
@@ -46,29 +48,29 @@ void randperm(int n, int perm[])
 T Classifier::randsplit(float trainpercent){
 	//data must be loaded previously
 	T errtest = 0;
-	if (!tdata->d || !tdata->l) return errtest;
+	if (!data->d || !data->l) return errtest;
 
-	int* b = new int[tdata->N];
-	randperm(tdata->N, b);
+	int* b = new int[data->N];
+	randperm(data->N, b);
 
-	int ilimit = tdata->N*trainpercent;
-	for (int i = 0; i < tdata->N; i++)
+	int ilimit = data->N*trainpercent;
+	for (int i = 0; i < data->N; i++)
 	{
 		if (i < ilimit)
-			tdata->w[b[i]] = 1.f/ilimit;
+			data->w[b[i]] = 1.f/ilimit;
 		else
-			tdata->w[b[i]] = 0;
+			data->w[b[i]] = 0;
 	}
 
 	train();
 	
-	for (int i = 0; i < ilimit; i++)
+	for (int i = ilimit; i < data->N; i++)
 	{
-		T lbl = predict(tdata->d + b[i] * tdata->M);
-		if (lbl*tdata->l[b[i]] < 0)
+		T lbl = predict(data->d + b[i] * data->M);
+		if (lbl*data->l[b[i]] < 0)
 			errtest++;
 	}
-	errtest /= (tdata->N - ilimit);
+	errtest /= (data->N - ilimit);
 	printf("Error on the test split: %.4f %%, acc: %.4f %%\n", errtest * 100, 100 * (1 - errtest));
 	return errtest;
 }
@@ -77,25 +79,25 @@ T Classifier::randsplit(float trainpercent){
 T Classifier::crossvalidation(int nfold, T* errs){
 	//data must be loaded previously
 	T erravg = 0;
-	if (!tdata->d || !tdata->l) return erravg;
+	if (!data->d || !data->l) return erravg;
 
-	const int MM = tdata->N / nfold;
-	int* b = new int[tdata->N];
-	randperm(tdata->N, b);
+	const int MM = data->N / nfold;
+	int* b = new int[data->N];
+	randperm(data->N, b);
 
 	for (int kfold = 0; kfold<nfold; kfold++){
-		for (int i = 0; i<tdata->N; i++)
-		if (i*nfold / tdata->N == kfold)
-			tdata->w[b[i]] = 0.f;
+		for (int i = 0; i<data->N; i++)
+		if (i*nfold / data->N == kfold)
+			data->w[b[i]] = 0.f;
 		else
-			tdata->w[b[i]] = 1.f/(tdata->N-MM);
+			data->w[b[i]] = 1.f/(data->N-MM);
 
 		train();
 
 		float err = 0, total = 0;
-		for (int i = kfold*tdata->N / nfold; i<(kfold + 1)*tdata->N / nfold; i++){
-			T lbl = predict(tdata->d + b[i] * tdata->M);
-			if (lbl*tdata->l[b[i]]<0)
+		for (int i = kfold*data->N / nfold; i<(kfold + 1)*data->N / nfold; i++){
+			T lbl = predict(data->d + b[i] * data->M);
+			if (lbl*data->l[b[i]]<0)
 				err++;
 			total++;
 		}
@@ -116,13 +118,13 @@ T Classifier::crossvalidation(int nfold, T* errs){
 void Classifier::speedTest(){
 
 	double start = clock();
-	T* sample = tdata->d;
-	for (int i = 0; i < tdata->N; i++, sample+=tdata->M)
+	T* sample = data->d;
+	for (int i = 0; i < data->N; i++, sample+=data->M)
 		predict(sample);
 	double end = clock();
 	printf("Execution time:\n");
 	printf("\tWhole test set: %.2f sec \n", (end-start)/CLOCKS_PER_SEC);
-	printf("\tSingle instance: %.2f sec \n", (end - start) / CLOCKS_PER_SEC/tdata->N);
-	printf("\tClassifications per second %.2f sec \n", CLOCKS_PER_SEC * tdata->N/(end - start));
+	printf("\tSingle instance: %.2f sec \n", (end - start) / CLOCKS_PER_SEC/data->N);
+	printf("\tClassifications per second %.2f sec \n", CLOCKS_PER_SEC * data->N/(end - start));
 
 }

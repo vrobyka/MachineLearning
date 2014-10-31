@@ -5,7 +5,7 @@
 #pragma warning(disable: 4267) // possible loss of data
 
 #include "stdh.h"
-#include "traindata.h"
+#include "data.h"
 // 1 GINI, 
 // 2 enthropy, 
 // 3 local classification error - recommended (a.k.a. node error)
@@ -64,7 +64,7 @@ public:
 	//
 		
 	/** Main training procedure works with already loaded training data from tdata.*/
-	void train(Traindata* tdata, T3* oi);
+	void train(Data* tdata, T3* oi);
 	/** Predict from sample array, array length is known. Involves descending from the root to a leaf node. */
 	T predict(T* sample);
 	
@@ -78,7 +78,7 @@ public:
 private:	
 	void normalizeData(T* data, int nrfeatures, int nrsamples);
 	/** Recursive helper function for training. Not called by the user. */
-	void trainrec( Traindata* tdata, vector<int>* indexes, T3* oi, int treeindex );
+	void trainrec( Data* tdata, vector<int>* indexes, T3* oi, int treeindex );
 	//io stuff
 	ofstream fout;
 	ifstream fin;

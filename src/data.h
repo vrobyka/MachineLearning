@@ -1,7 +1,7 @@
 #pragma once
 #include "stdh.h"
 
-class Traindata{
+class Data{
 public:
 	int N;		/**< number of instances */
 	int M;		/**< feature vector dimension */
@@ -9,9 +9,10 @@ public:
 	T *l;			/**< labels for every instance*/
 	T2 *w;		/**< weights for every instance */	
 
-	Traindata();
-	~Traindata();
+	Data();
+	~Data();
 	void loadData(const char* fname);
+	void loadSparseData(const char* fname, int nrfeatures);
 	void loadDataBinary(const char* fname, int dim);
-	void normalizeData(Traindata* tdata);
+	void normalizeData(Data* tdata);
 };

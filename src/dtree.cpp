@@ -20,7 +20,7 @@ DTree::~DTree(){
 	if( nodes ) delete[] nodes;
 }
 
-void DTree::train(Traindata* tdata, T3* oi){	
+void DTree::train(Data* tdata, T3* oi){	
 	//run recursive training procedure
 	vector<int> indexes; 
 	for(int i=0; i<tdata->N; i++) 
@@ -31,7 +31,7 @@ void DTree::train(Traindata* tdata, T3* oi){
 	//cleanup for oi
 }
 
-void DTree::trainrec( Traindata* tdata, vector<int>* indexes, T3* oi, int treeindex ){
+void DTree::trainrec( Data* tdata, vector<int>* indexes, T3* oi, int treeindex ){
 	const int nrsamples = indexes->size();
 	const int nrfeatures = tdata->M;
 	Node* node = nodes + treeindex;
