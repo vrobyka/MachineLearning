@@ -49,3 +49,14 @@ public:
 	PerformanceTimer(void);
 	~PerformanceTimer(void);
 };
+
+
+template<class T> struct Mat{
+	int height;
+	int width;
+	T* data;
+
+	~Mat(){
+		if (data) delete[] data;
+	}
+};

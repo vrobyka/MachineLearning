@@ -77,6 +77,7 @@ void Data::loadData(const char* fname){
 }
 
 void Data::loadSparseData(const char* fname, int nrfeatures){
+	return; //not working yet
 	FILE* f = fopen2(fname, "r");
 
 	//read training data from a csv file where the first column is the binary class label 1/-1
